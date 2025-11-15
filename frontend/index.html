@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="fr" class="antialiased">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Attendance Dashboard — CSP/HIKIMA</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --card-shadow: 0 10px 30px rgba(2,6,23,0.08); }
+  html,body { font-family: 'Poppins', sans-serif; }
+  .btn { @apply px-3 py-2 rounded-md font-semibold shadow-sm; }
+  .att-btn { padding: 6px 10px; border-radius: 6px; font-weight:600; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="login-screen" class="min-h-screen flex items-center justify-center p-6">
+  <div class="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl p-8 shadow" style="box-shadow: var(--card-shadow)">
+    <h2 class="text-2xl font-bold mb-2 text-center">Connexion</h2>
+    <p class="text-sm text-gray-500 mb-6 text-center">Connecte-toi pour accéder au dashboard</p>
+    <div class="space-y-3">
+      <input id="username" class="w-full p-3 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900" placeholder="Nom d'utilisateur">
+      <input id="password" type="password" class="w-full p-3 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900" placeholder="Mot de passe">
+      <div class="flex items-center justify-between">
+        <button id="login-btn" class="bg-gradient-to-r from-indigo-600 to-indigo-400 text-white px-5 py-2 rounded-md font-semibold">Se connecter</button>
+        <button id="demo-btn" class="text-sm text-gray-600 dark:text-gray-300">Demo: admin / 1234</button>
+      </div>
+      <p id="login-error" class="text-red-500 text-sm mt-2"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app" class="hidden h-screen flex overflow-hidden">
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 p-6 border-r border-gray-200 dark:border-gray-700">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">M</div>
+      <div>
+        <div class="text-lg font-semibold">Admin</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400">Administrateur</div>
+      </div>
+    </div>
+    <nav class="space-y-2 mt-4">
+      <button class="w-full text-left p-3 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-700 flex items-center gap-3" onclick="showSection('overview')"><span>🏠</span><span>Accueil</span></button>
+      <button class="w-full text-left p-3 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-700 flex items-center gap-3" onclick="showSection('classes')"><span>🧑‍🏫</span><span>Classes</span></button>
+      <button class="w-full text-left p-3 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-700 flex items-center gap-3" onclick="showSection('students')"><span>📚</span><span>Étudiants</span></button>
+      <button class="w-full text-left p-3 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-700 flex items-center gap-3" onclick="logout()"><span>🚪</span><span>Déconnexion</span></button>
+    </nav>
+    <div class="mt-8">
+      <button id="dark-toggle" class="w-full py-2 px-3 rounded-md bg-gray-200 dark:bg-gray-700" onclick="toggleDarkMode()">🌓 Basculer thème</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <div class="flex-1 flex flex-col">
+    <header class="flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <div class="flex items-center gap-4">
+        <h1 class="text-xl font-bold">Dashboard</h1>
+        <div id="student-count" class="ml-6 text-sm text-gray-500 dark:text-gray-300">Étudiants: 0</div>
+      </div>
+      <div class="flex items-center gap-3">
+        <input id="global-search" type="search" placeholder="Rechercher un étudiant..." class="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900" oninput="searchAll(this.value)">
+        <button class="px-3 py-2 rounded-md bg-amber-500 text-white" onclick="exportCSV()">Exporter CSV</button>
+      </div>
+    </header>
+
+    <main class="p-6 overflow-auto flex-1 bg-gray-50 dark:bg-gray-900">
+
+      <!-- OVERVIEW -->
+      <section id="overview" class="">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow">
+            <h3 class="font-semibold text-gray-500 dark:text-gray-300">Total étudiants</h3>
+            <div id="total-students" class="text-3xl font-bold mt-2">0</div>
+          </div>
+          <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow">
+            <h3 class="font-semibold text-gray-500 dark:text-gray-300">Présences aujourd'hui</h3>
+            <div id="today-present" class="text-3xl font-bold mt-2">0</div>
+          </div>
+          <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow">
+            <h3 class="font-semibold text-gray-500 dark:text-gray-300">Classes actives</h3>
+            <div id="active-classes" class="text-3xl font-bold mt-2">0</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CLASSES -->
+      <section id="classes" class="hidden">
+        <h2 class="text-2xl font-bold mb-4">Classes</h2>
+        <div id="class-buttons" class="flex flex-wrap gap-3 mb-6"></div>
+        <div id="lists-container" class="space-y-4"></div>
+      </section>
+
+      <!-- STUDENTS -->
+      <section id="students" class="hidden">
+        <h2 class="text-2xl font-bold mb-4">Étudiants (All)</h2>
+        <div id="students-table" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4"></div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script>
+/* ---------------- DATA ---------------- */
+const classesData = {
+  'TA1': ['Farida', 'Imane', 'Latifa'],
+  'TA2': ['Mahamadou', 'Hajara', 'Halima'],
+  'TA3': ['Fatima', 'Farouk', 'Nazifi'],
+  'TD1': ['Leyla', 'Hadiza', 'Ismael'],
+  'TD2': ['Achirou', 'Nouradine', 'Rafiatou'],
+  'TD3': ['Mariama', 'Salamatou', 'Issa', 'Abdoulaye']
+};
+let attendance = {};
+let openClass = null;
+
+/* --------------- LOGIN ---------------- */
+document.getElementById('login-btn').addEventListener('click', doLogin);
+document.getElementById('demo-btn').addEventListener('click', () => {
+  document.getElementById('username').value = 'admin';
+  document.getElementById('password').value = '1234';
+});
+
+async function doLogin() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+
+  try {
+    const res = await fetch('http://localhost:5083/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+
+    if(res.ok){
+      const data = await res.json();
+      localStorage.setItem('token', data.token);
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      initApp();
+    } else {
+      const err = await res.json();
+      document.getElementById('login-error').textContent = err.message;
+    }
+  } catch(e){
+    document.getElementById('login-error').textContent = 'Impossible de contacter le serveur';
+    console.error(e);
+  }
+}
+
+function logout() {
+  attendance={}; openClass=null;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('username').value='';
+  document.getElementById('password').value='';
+  document.getElementById('login-error').textContent='';
+}
+
+/* --------------- DARK MODE ---------------- */
+function toggleDarkMode(){document.documentElement.classList.toggle('dark'); localStorage.setItem('darkMode',document.documentElement.classList.contains('dark'))}
+if(localStorage.getItem('darkMode')==='true'){document.documentElement.classList.add('dark')}
+
+/* --------------- NAVIGATION ---------------- */
+function showSection(id){
+  document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  if(id==='classes') refreshClassesUI();
+  if(id==='students') renderStudentsTable();
+  if(id==='overview') updateCounts();
+}
+
+/* --------------- INIT APP ---------------- */
+function initApp(){
+  showSection('overview');
+  const classButtons = document.getElementById('class-buttons'); classButtons.innerHTML='';
+  for(const cls of Object.keys(classesData)){
+    const btn=document.createElement('button');
+    btn.className='px-4 py-2 bg-gray-800 text-white rounded-md';
+    btn.textContent=cls;
+    btn.onclick=()=>toggleClassList(cls);
+    classButtons.appendChild(btn);
+  }
+  const listsContainer=document.getElementById('lists-container'); listsContainer.innerHTML='';
+  for(const [cls,students] of Object.entries(classesData)){
+    const wrapper=document.createElement('div'); wrapper.id=`wrapper-${cls}`; wrapper.className='bg-white dark:bg-gray-800 p-4 rounded-xl shadow hidden';
+    const header=document.createElement('div'); header.className='flex items-center justify-between mb-3';
+    header.innerHTML=`<h3 class="font-semibold">${cls} — ${students.length} étudiants</h3>
+      <button class="px-3 py-1 rounded-md bg-blue-600 text-white" onclick="sendClassSMS('${cls}')">Envoyer SMS</button>`;
+    wrapper.appendChild(header);
+    const ul=document.createElement('ul'); ul.id=`list-${cls}`; ul.className='space-y-3'; wrapper.appendChild(ul);
+    listsContainer.appendChild(wrapper);
+    students.forEach(name=>{
+      attendance[name]=attendance[name]||'';
+      const li=document.createElement('li'); li.className='flex items-center justify-between';
+      li.innerHTML=`<div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 flex items-center justify-center font-semibold">${name.charAt(0)}</div>
+        <div><div class="font-medium">${name}</div><div class="text-xs text-gray-500 dark:text-gray-400">${cls}</div></div></div>
+        <div class="flex items-center gap-2">
+        <button class="att-btn present bg-green-500 text-white" onclick="setAttendance(this,'${name}','Present')">Présent</button>
+        <button class="att-btn absent bg-red-500 text-white" onclick="setAttendance(this,'${name}','Absent')">Absent</button>
+        </div>`;
+      ul.appendChild(li);
+    });
+  }
+  updateCounts();
+}
+
+/* --------------- CLASS TOGGLE ---------------- */
+function toggleClassList(cls){
+  const wrapper=document.getElementById(`wrapper-${cls}`); if(!wrapper) return;
+  if(openClass===cls){wrapper.classList.add('hidden'); openClass=null; return;}
+  if(openClass){document.getElementById(`wrapper-${openClass}`)?.classList.add('hidden')}
+  wrapper.classList.remove('hidden'); openClass=cls;
+}
+
+/* --------------- ATTENDANCE ---------------- */
+function setAttendance(button,student,status){
+  attendance[student]=(attendance[student]===status)?'':status;
+  button.parentElement.querySelectorAll('.present,.absent').forEach(b=>b.classList.remove('ring-2','ring-offset-2'));
+  if(attendance[student]===status) button.classList.add('ring-2','ring-offset-2');
+  updateCounts();
+}
+
+/* --------------- COUNTS ---------------- */
+function updateCounts(){
+  const total=Object.keys(attendance).length;
+  const present=Object.values(attendance).filter(s=>s==='Present').length;
+  document.getElementById('total-students').textContent=total;
+  document.getElementById('today-present').textContent=present;
+  document.getElementById('active-classes').textContent=Object.keys(classesData).length;
+  document.getElementById('student-count').textContent=`Étudiants: ${total}`;
+}
+
+function refreshClassesUI(){for(const cls of Object.keys(classesData)){document.getElementById(`wrapper-${cls}`)?.classList.add('hidden'); if(openClass===cls) document.getElementById(`wrapper-${cls}`)?.classList.remove('hidden');}}
+
+/* --------------- STUDENTS TABLE ---------------- */
+function renderStudentsTable(){
+  const container=document.getElementById('students-table'); container.innerHTML=''; const table=document.createElement('div'); table.className='space-y-2';
+  for(const cls of Object.keys(classesData)){
+    classesData[cls].forEach(name=>{
+      const row=document.createElement('div'); row.className='flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700';
+      row.innerHTML=`<div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center font-semibold">${name.charAt(0)}</div>
+        <div><div class="font-medium">${name}</div><div class="text-xs text-gray-500 dark:text-gray-400">${cls}</div></div></div>
+        <div class="text-sm font-medium">${attendance[name]||'—'}</div>`;
+      table.appendChild(row);
+    });
+  }
+  container.appendChild(table);
+}
+
+/* --------------- SEARCH ---------------- */
+function searchAll(query){
+  query=(query||'').trim().toLowerCase();
+  if(!query){refreshClassesUI(); return;}
+  for(const cls of Object.keys(classesData)){
+    const ul=document.getElementById(`list-${cls}`); if(!ul) continue;
+    let has=false;
+    ul.querySelectorAll('li').forEach(li=>{
+      const name=li.querySelector('.font-medium').textContent.toLowerCase();
+      if(name.includes(query)){li.classList.remove('hidden'); has=true;} else li.classList.add('hidden');
+    });
+    const wrapper=document.getElementById(`wrapper-${cls}`);
+    if(has) wrapper.classList.remove('hidden'); else wrapper.classList.add('hidden');
+  }
+}
+
+/* --------------- CSV ---------------- */
+function exportCSV(){
+  let rows=[['Student','Class','Status']];
+  for(const cls of Object.keys(classesData)){
+    classesData[cls].forEach(name=>rows.push([name,cls,attendance[name]||'']));
+  }
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;
+  a.download=`attendance_${(new Date()).toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+/* --------------- SEND SMS CLASS ---------------- */
+function sendClassSMS(cls) {
+  const students = classesData[cls];
+  const messages = [];
+
+  students.forEach(name => {
+    if (attendance[name]) {
+      messages.push({
+        To: '+233534708025', // numéro de test
+        Message: `${name} est ${attendance[name]}`
+      });
+    }
+  });
+
+  if (messages.length === 0) {
+    alert('Aucun statut à envoyer pour cette classe.');
+    return;
+  }
+
+  const payload = { req: messages };
+
+  fetch(' https://unproposable-leyla-thunderously.ngrok-free.dev/api/sms/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.json())
+  .then(data => {
+    alert('Réponse du backend: ' + JSON.stringify(data));
+  })
+  .catch(err => {
+    console.error(err);
+    alert('Erreur lors de l’envoi des SMS');
+  });
+}
+</script>
+</body>
+</html>
