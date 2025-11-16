@@ -1,6 +1,6 @@
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Ajouter les services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -10,7 +10,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://127.0.0.1:8080") // ton front
+        policy.WithOrigins("http://127.0.0.1:8080") // ton front local
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -18,16 +18,21 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+// Middleware
 app.UseHttpsRedirection();
-app.UseCors("AllowFrontend"); // <- assure-toi que c'est ici
+app.UseCors("AllowFrontend");
 app.UseAuthorization();
 app.MapControllers();
+
+// ⚡ Utiliser le port Render ou local
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5083"; // si local, 5083
+app.Urls.Add($"http://0.0.0.0:{port}");
 
 app.Run();
