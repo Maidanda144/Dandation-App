@@ -1,22 +1,21 @@
-# Étape 1 : builder
+# Étape 1 : Build
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /app
 
-# Copier les fichiers csproj et restaurer les dépendances
+# Copier les fichiers du projet
 COPY *.csproj ./
 RUN dotnet restore
 
-# Copier le reste des fichiers et publier
 COPY . ./
-RUN dotnet publish -c Release -o out
+RUN dotnet publish -c Release -o /app/publish
 
-# Étape 2 : runtime
-FROM mcr.microsoft.com/dotnet/aspnet:9.0
+# Étape 2 : Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
-COPY --from=build /app/out .
+COPY --from=build /app/publish .
 
-# Exposer le port sur lequel l'app va tourner
-EXPOSE 5000
+# Exposer le port HTTP que Render va utiliser
+EXPOSE 10000
 
-# Démarrer l'application
+# Lancer l'application
 ENTRYPOINT ["dotnet", "AttendanceBackend.dll"]
