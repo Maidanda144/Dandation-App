@@ -2,18 +2,16 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Ajouter les services
+// Services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// CORS (si ton frontend fait des requêtes depuis un autre domaine)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy
-            .AllowAnyOrigin()
+        policy.AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -21,39 +19,41 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// Middleware
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
-app.UseAuthorization();
 
-// Servir le frontend statique
+// ---- SERVE FRONTEND ----
 var frontendPath = Path.Combine(Directory.GetCurrentDirectory(), "frontend");
 
 if (Directory.Exists(frontendPath))
 {
-    app.UseDefaultFiles(new DefaultFilesOptions
-    {
-        FileProvider = new PhysicalFileProvider(frontendPath),
-        RequestPath = ""
-    });
     app.UseStaticFiles(new StaticFileOptions
     {
         FileProvider = new PhysicalFileProvider(frontendPath),
         RequestPath = ""
     });
+
+    app.Use(async (context, next) =>
+    {
+        if (!context.Request.Path.Value.StartsWith("/api"))
+        {
+            context.Response.ContentType = "text/html";
+            await context.Response.SendFileAsync(Path.Combine(frontendPath, "index.html"));
+            return;
+        }
+        await next();
+    });
 }
 
-// Routes API
 app.MapControllers();
 
-// Render fournit le port automatiquement
+// Render PORT
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5083";
 app.Urls.Add($"http://0.0.0.0:{port}");
 
