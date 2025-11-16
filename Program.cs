@@ -2,18 +2,18 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 🔹 Ajouter les services
+// Ajouter les services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// ⚡ CORS pour autoriser ton frontend local si nécessaire
+// CORS (si ton frontend fait des requêtes depuis un autre domaine)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .WithOrigins("http://127.0.0.1:8080") // adresse de ton front local
+            .AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -21,34 +21,39 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// 🔹 Swagger (API documentation)
+// Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// 🔹 Middleware
+// Middleware
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 app.UseAuthorization();
 
-// 🔹 Servir le frontend statique
-var indexPath = Path.Combine(Directory.GetCurrentDirectory(), "index.html");
-if (File.Exists(indexPath))
+// Servir le frontend statique
+var frontendPath = Path.Combine(Directory.GetCurrentDirectory(), "frontend");
+
+if (Directory.Exists(frontendPath))
 {
-    app.UseDefaultFiles(); // index.html par défaut
+    app.UseDefaultFiles(new DefaultFilesOptions
+    {
+        FileProvider = new PhysicalFileProvider(frontendPath),
+        RequestPath = ""
+    });
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = new PhysicalFileProvider(Directory.GetCurrentDirectory()),
-        RequestPath = "" // accessible depuis la racine
+        FileProvider = new PhysicalFileProvider(frontendPath),
+        RequestPath = ""
     });
 }
 
-// 🔹 Routes API
+// Routes API
 app.MapControllers();
 
-// ⚡ Render fournit le port automatiquement
+// Render fournit le port automatiquement
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5083";
 app.Urls.Add($"http://0.0.0.0:{port}");
 
