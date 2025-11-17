@@ -13,10 +13,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 
- HEAD
-
 # Exposer le port utilisé par Render
- deploy-temp
 EXPOSE 10000
 
+# Lancer l'application
 ENTRYPOINT ["dotnet", "AttendanceBackend.dll"]
