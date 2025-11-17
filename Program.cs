@@ -2,11 +2,12 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Services
+// ------------------- Services -------------------
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// CORS pour autoriser le frontend
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -19,15 +20,17 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// ------------------- Middleware -------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+// Appliquer CORS
 app.UseCors("AllowFrontend");
 
-// ---- SERVE FRONTEND ----
+// Servir le frontend statique
 var frontendPath = Path.Combine(AppContext.BaseDirectory, "frontend");
 if (Directory.Exists(frontendPath))
 {
@@ -43,10 +46,10 @@ if (Directory.Exists(frontendPath))
     });
 }
 
-// ---- ROUTES API ----
-app.MapControllers(); // Must be before SPA fallback
+// Routes API
+app.MapControllers();
 
-// ---- SPA fallback ----
+// SPA fallback pour toutes les routes non /api
 if (Directory.Exists(frontendPath))
 {
     app.Use(async (context, next) =>
@@ -65,6 +68,6 @@ if (Directory.Exists(frontendPath))
     });
 }
 
-// Render port binding
+// Bind sur le port Render
 var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
 app.Run($"http://0.0.0.0:{port}");

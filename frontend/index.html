@@ -15,11 +15,6 @@
 </head>
 <body class="bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
 
-<script>
-  // ✅ Définir l'URL de l'API
-  const API_URL = 'https://hikima-goi8.onrender.com/api';
-</script>
-
 <!-- ===== LOGIN SCREEN ===== -->
 <div id="login-screen" class="min-h-screen flex items-center justify-center p-6">
   <div class="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl p-8 shadow" style="box-shadow: var(--card-shadow)">
@@ -39,6 +34,7 @@
 
 <!-- ===== MAIN APP ===== -->
 <div id="app" class="hidden h-screen flex overflow-hidden">
+
   <!-- SIDEBAR -->
   <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 p-6 border-r border-gray-200 dark:border-gray-700">
     <div class="flex items-center gap-3 mb-6">
@@ -73,6 +69,7 @@
     </header>
 
     <main class="p-6 overflow-auto flex-1 bg-gray-50 dark:bg-gray-900">
+
       <!-- OVERVIEW -->
       <section id="overview" class="">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -103,6 +100,7 @@
         <h2 class="text-2xl font-bold mb-4">Étudiants (All)</h2>
         <div id="students-table" class="bg-white dark:bg-gray-800 rounded-xl shadow p-4"></div>
       </section>
+
     </main>
   </div>
 </div>
@@ -132,11 +130,12 @@ async function doLogin() {
   const password = document.getElementById('password').value.trim();
 
   try {
-    const res = await fetch(`${API_URL}/auth/login`, {  // <-- URL publique
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
+   const res = await fetch('https://dandation-app.onrender.com/api/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ username, password })
+});
+
 
     if(res.ok){
       const data = await res.json();
@@ -154,6 +153,135 @@ async function doLogin() {
   }
 }
 
+function logout() {
+  attendance={}; openClass=null;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('username').value='';
+  document.getElementById('password').value='';
+  document.getElementById('login-error').textContent='';
+}
+
+/* --------------- DARK MODE ---------------- */
+function toggleDarkMode(){document.documentElement.classList.toggle('dark'); localStorage.setItem('darkMode',document.documentElement.classList.contains('dark'))}
+if(localStorage.getItem('darkMode')==='true'){document.documentElement.classList.add('dark')}
+
+/* --------------- NAVIGATION ---------------- */
+function showSection(id){
+  document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  if(id==='classes') refreshClassesUI();
+  if(id==='students') renderStudentsTable();
+  if(id==='overview') updateCounts();
+}
+
+/* --------------- INIT APP ---------------- */
+function initApp(){
+  showSection('overview');
+  const classButtons = document.getElementById('class-buttons'); classButtons.innerHTML='';
+  for(const cls of Object.keys(classesData)){
+    const btn=document.createElement('button');
+    btn.className='px-4 py-2 bg-gray-800 text-white rounded-md';
+    btn.textContent=cls;
+    btn.onclick=()=>toggleClassList(cls);
+    classButtons.appendChild(btn);
+  }
+  const listsContainer=document.getElementById('lists-container'); listsContainer.innerHTML='';
+  for(const [cls,students] of Object.entries(classesData)){
+    const wrapper=document.createElement('div'); wrapper.id=`wrapper-${cls}`; wrapper.className='bg-white dark:bg-gray-800 p-4 rounded-xl shadow hidden';
+    const header=document.createElement('div'); header.className='flex items-center justify-between mb-3';
+    header.innerHTML=`<h3 class="font-semibold">${cls} — ${students.length} étudiants</h3>
+      <button class="px-3 py-1 rounded-md bg-blue-600 text-white" onclick="sendClassSMS('${cls}')">Envoyer SMS</button>`;
+    wrapper.appendChild(header);
+    const ul=document.createElement('ul'); ul.id=`list-${cls}`; ul.className='space-y-3'; wrapper.appendChild(ul);
+    listsContainer.appendChild(wrapper);
+    students.forEach(name=>{
+      attendance[name]=attendance[name]||'';
+      const li=document.createElement('li'); li.className='flex items-center justify-between';
+      li.innerHTML=`<div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 flex items-center justify-center font-semibold">${name.charAt(0)}</div>
+        <div><div class="font-medium">${name}</div><div class="text-xs text-gray-500 dark:text-gray-400">${cls}</div></div></div>
+        <div class="flex items-center gap-2">
+        <button class="att-btn present bg-green-500 text-white" onclick="setAttendance(this,'${name}','Present')">Présent</button>
+        <button class="att-btn absent bg-red-500 text-white" onclick="setAttendance(this,'${name}','Absent')">Absent</button>
+        </div>`;
+      ul.appendChild(li);
+    });
+  }
+  updateCounts();
+}
+
+/* --------------- CLASS TOGGLE ---------------- */
+function toggleClassList(cls){
+  const wrapper=document.getElementById(`wrapper-${cls}`); if(!wrapper) return;
+  if(openClass===cls){wrapper.classList.add('hidden'); openClass=null; return;}
+  if(openClass){document.getElementById(`wrapper-${openClass}`)?.classList.add('hidden')}
+  wrapper.classList.remove('hidden'); openClass=cls;
+}
+
+/* --------------- ATTENDANCE ---------------- */
+function setAttendance(button,student,status){
+  attendance[student]=(attendance[student]===status)?'':status;
+  button.parentElement.querySelectorAll('.present,.absent').forEach(b=>b.classList.remove('ring-2','ring-offset-2'));
+  if(attendance[student]===status) button.classList.add('ring-2','ring-offset-2');
+  updateCounts();
+}
+
+/* --------------- COUNTS ---------------- */
+function updateCounts(){
+  const total=Object.keys(attendance).length;
+  const present=Object.values(attendance).filter(s=>s==='Present').length;
+  document.getElementById('total-students').textContent=total;
+  document.getElementById('today-present').textContent=present;
+  document.getElementById('active-classes').textContent=Object.keys(classesData).length;
+  document.getElementById('student-count').textContent=`Étudiants: ${total}`;
+}
+
+function refreshClassesUI(){for(const cls of Object.keys(classesData)){document.getElementById(`wrapper-${cls}`)?.classList.add('hidden'); if(openClass===cls) document.getElementById(`wrapper-${cls}`)?.classList.remove('hidden');}}
+
+/* --------------- STUDENTS TABLE ---------------- */
+function renderStudentsTable(){
+  const container=document.getElementById('students-table'); container.innerHTML=''; const table=document.createElement('div'); table.className='space-y-2';
+  for(const cls of Object.keys(classesData)){
+    classesData[cls].forEach(name=>{
+      const row=document.createElement('div'); row.className='flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700';
+      row.innerHTML=`<div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center font-semibold">${name.charAt(0)}</div>
+        <div><div class="font-medium">${name}</div><div class="text-xs text-gray-500 dark:text-gray-400">${cls}</div></div></div>
+        <div class="text-sm font-medium">${attendance[name]||'—'}</div>`;
+      table.appendChild(row);
+    });
+  }
+  container.appendChild(table);
+}
+
+/* --------------- SEARCH ---------------- */
+function searchAll(query){
+  query=(query||'').trim().toLowerCase();
+  if(!query){refreshClassesUI(); return;}
+  for(const cls of Object.keys(classesData)){
+    const ul=document.getElementById(`list-${cls}`); if(!ul) continue;
+    let has=false;
+    ul.querySelectorAll('li').forEach(li=>{
+      const name=li.querySelector('.font-medium').textContent.toLowerCase();
+      if(name.includes(query)){li.classList.remove('hidden'); has=true;} else li.classList.add('hidden');
+    });
+    const wrapper=document.getElementById(`wrapper-${cls}`);
+    if(has) wrapper.classList.remove('hidden'); else wrapper.classList.add('hidden');
+  }
+}
+
+/* --------------- CSV ---------------- */
+function exportCSV(){
+  let rows=[['Student','Class','Status']];
+  for(const cls of Object.keys(classesData)){
+    classesData[cls].forEach(name=>rows.push([name,cls,attendance[name]||'']));
+  }
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;
+  a.download=`attendance_${(new Date()).toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
 /* --------------- SEND SMS CLASS ---------------- */
 function sendClassSMS(cls) {
   const students = classesData[cls];
@@ -162,7 +290,7 @@ function sendClassSMS(cls) {
   students.forEach(name => {
     if (attendance[name]) {
       messages.push({
-        To: '+233534708025',
+        To: '+233534708025', // numéro de test
         Message: `${name} est ${attendance[name]}`
       });
     }
@@ -175,22 +303,21 @@ function sendClassSMS(cls) {
 
   const payload = { req: messages };
 
-  fetch(`${API_URL}/sms/send`, {  // <-- URL publique
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  })
-  .then(res => res.json())
-  .then(data => {
-    alert('Réponse du backend: ' + JSON.stringify(data));
-  })
-  .catch(err => {
-    console.error(err);
-    alert('Erreur lors de l’envoi des SMS');
-  });
-}
+fetch('https://dandation-app.onrender.com/api/sms/send', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload)
+})
+.then(res => res.json())
+.then(data => {
+  alert('Réponse du backend: ' + JSON.stringify(data));
+})
+.catch(err => {
+  console.error(err);
+  alert('Erreur lors de l’envoi des SMS');
+});
 
-// ...reste du JS (dark mode, navigation, counts, etc.) inchangé
+}
 </script>
 </body>
 </html>
