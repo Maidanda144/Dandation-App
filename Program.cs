@@ -2,12 +2,11 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ------------------- Services -------------------
+// Services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// CORS pour autoriser le frontend
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -20,18 +19,17 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// ------------------- Middleware -------------------
+app.UseCors("AllowFrontend");
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// Appliquer CORS
-app.UseCors("AllowFrontend");
-
-// Servir le frontend statique
+// ---- SERVE FRONTEND ----
 var frontendPath = Path.Combine(AppContext.BaseDirectory, "frontend");
+
 if (Directory.Exists(frontendPath))
 {
     app.UseDefaultFiles(new DefaultFilesOptions
@@ -39,6 +37,7 @@ if (Directory.Exists(frontendPath))
         FileProvider = new PhysicalFileProvider(frontendPath),
         RequestPath = ""
     });
+
     app.UseStaticFiles(new StaticFileOptions
     {
         FileProvider = new PhysicalFileProvider(frontendPath),
@@ -46,28 +45,25 @@ if (Directory.Exists(frontendPath))
     });
 }
 
-// Routes API
-app.MapControllers();
+// ---- ROUTES API ----
+app.MapControllers(); // Must be before SPA fallback
 
-// SPA fallback pour toutes les routes non /api
-if (Directory.Exists(frontendPath))
+// ---- SPA fallback ----
+app.Use(async (context, next) =>
 {
-    app.Use(async (context, next) =>
+    if (!context.Request.Path.Value.StartsWith("/api"))
     {
-        if (!context.Request.Path.Value.StartsWith("/api"))
+        var file = Path.Combine(frontendPath, "index.html");
+        if (File.Exists(file))
         {
-            var file = Path.Combine(frontendPath, "index.html");
-            if (File.Exists(file))
-            {
-                context.Response.ContentType = "text/html";
-                await context.Response.SendFileAsync(file);
-                return;
-            }
+            context.Response.ContentType = "text/html";
+            await context.Response.SendFileAsync(file);
+            return;
         }
-        await next();
-    });
-}
+    }
+    await next();
+});
 
-// Bind sur le port Render
+// Port binding Render
 var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
 app.Run($"http://0.0.0.0:{port}");
