@@ -54,6 +54,10 @@ if (Directory.Exists(frontendPath))
 
 app.MapControllers();
 
+<<<<<<< HEAD
 // Render port binding
+=======
+// Render port binding (IMPORTANT!)
+>>>>>>> deploy-temp
 var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
 app.Run($"http://0.0.0.0:{port}");
