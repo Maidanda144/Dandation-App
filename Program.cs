@@ -7,7 +7,6 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// CORS pour frontend
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -35,27 +34,33 @@ if (Directory.Exists(frontendPath))
 {
     app.UseDefaultFiles(new DefaultFilesOptions
     {
-        FileProvider = new PhysicalFileProvider(frontendPath)
+        FileProvider = new PhysicalFileProvider(frontendPath),
+        RequestPath = ""
     });
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = new PhysicalFileProvider(frontendPath)
+        FileProvider = new PhysicalFileProvider(frontendPath),
+        RequestPath = ""
+    });
+
+    // SPA fallback
+    app.Use(async (context, next) =>
+    {
+        if (!context.Request.Path.Value.StartsWith("/api"))
+        {
+            var file = Path.Combine(frontendPath, "index.html");
+            if (File.Exists(file))
+            {
+                context.Response.ContentType = "text/html";
+                await context.Response.SendFileAsync(file);
+                return;
+            }
+        }
+        await next();
     });
 }
 
-// Map controllers en premier
 app.MapControllers();
-
-// SPA fallback pour toutes les routes non /api
-app.MapFallback(async context =>
-{
-    var indexFile = Path.Combine(frontendPath, "index.html");
-    if (File.Exists(indexFile))
-    {
-        context.Response.ContentType = "text/html";
-        await context.Response.SendFileAsync(indexFile);
-    }
-});
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
 app.Run($"http://0.0.0.0:{port}");
