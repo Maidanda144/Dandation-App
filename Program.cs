@@ -2,18 +2,16 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 🔹 Ajouter les services API
+// Services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// ⚡ CORS pour autoriser ton frontend local si besoin
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy
-            .WithOrigins("http://127.0.0.1:8080") // frontend local si tu testes
+        policy.AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -21,35 +19,41 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// 🔹 Swagger pour dev uniquement
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// 🔹 Middleware
-app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
-app.UseAuthorization();
+app.UseHttpsRedirection();
 
-// 🔹 Servir le frontend statique
+// ---- SERVE FRONTEND ----
 var frontendPath = Path.Combine(Directory.GetCurrentDirectory(), "frontend");
+
 if (Directory.Exists(frontendPath))
 {
-    app.UseDefaultFiles(); // index.html par défaut
     app.UseStaticFiles(new StaticFileOptions
     {
         FileProvider = new PhysicalFileProvider(frontendPath),
-        RequestPath = "" // accessible depuis la racine
+        RequestPath = ""
+    });
+
+    // SPA fallback
+    app.Use(async (context, next) =>
+    {
+        if (!context.Request.Path.Value.StartsWith("/api"))
+        {
+            context.Response.ContentType = "text/html";
+            await context.Response.SendFileAsync(Path.Combine(frontendPath, "index.html"));
+            return;
+        }
+        await next();
     });
 }
 
-// 🔹 Routes API
 app.MapControllers();
 
-// ⚡ Render fournit le port automatiquement
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5083"; 
-app.Urls.Add($"http://0.0.0.0:{port}");
-
-app.Run();
+// Render port binding
+var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
+app.Run($"http://0.0.0.0:{port}");

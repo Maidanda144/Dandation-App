@@ -8,3 +8,7 @@ services:
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /api/health
+    autoDeploy: true
