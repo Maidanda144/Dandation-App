@@ -25,8 +25,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
+app.UseHttpsRedirection();
 
 // ---- SERVE FRONTEND ----
 var frontendPath = Path.Combine(Directory.GetCurrentDirectory(), "frontend");
@@ -39,6 +39,7 @@ if (Directory.Exists(frontendPath))
         RequestPath = ""
     });
 
+    // SPA fallback
     app.Use(async (context, next) =>
     {
         if (!context.Request.Path.Value.StartsWith("/api"))
@@ -53,8 +54,6 @@ if (Directory.Exists(frontendPath))
 
 app.MapControllers();
 
-// Render PORT
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5083";
-app.Urls.Add($"http://0.0.0.0:{port}");
-
-app.Run();
+// Render port binding (IMPORTANT!)
+var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
+app.Run($"http://0.0.0.0:{port}");

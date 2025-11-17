@@ -14,7 +14,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 
-# Exposer le port HTTP que Render va utiliser
+# Exposer le port utilisé par Render
 EXPOSE 10000
 
 # Lancer l'application
