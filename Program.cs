@@ -6,6 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -28,7 +29,6 @@ app.UseCors("AllowFrontend");
 
 // ---- SERVE FRONTEND ----
 var frontendPath = Path.Combine(AppContext.BaseDirectory, "frontend");
-
 if (Directory.Exists(frontendPath))
 {
     app.UseDefaultFiles(new DefaultFilesOptions
@@ -41,8 +41,14 @@ if (Directory.Exists(frontendPath))
         FileProvider = new PhysicalFileProvider(frontendPath),
         RequestPath = ""
     });
+}
 
-    // SPA fallback
+// ---- ROUTES API ----
+app.MapControllers(); // Must be before SPA fallback
+
+// ---- SPA fallback ----
+if (Directory.Exists(frontendPath))
+{
     app.Use(async (context, next) =>
     {
         if (!context.Request.Path.Value.StartsWith("/api"))
@@ -58,8 +64,6 @@ if (Directory.Exists(frontendPath))
         await next();
     });
 }
-
-app.MapControllers();
 
 // Render port binding
 var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
